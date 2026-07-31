@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.preference.PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <androidx.preference.EditTextPreference
+        android:key="candle_count"
+        android:title="@string/pref_candle_count_title"
+        android:summary="@string/pref_candle_count_summary"
+        android:defaultValue="5"
+        app:useSimpleSummaryProvider="true" />
+
+    <androidx.preference.ListPreference
+        android:key="alert_mode"
+        android:title="@string/pref_alert_mode_title"
+        android:summary="@string/pref_alert_mode_summary"
+        android:entries="@array/alert_mode_entries"
+        android:entryValues="@array/alert_mode_values"
+        android:defaultValue="Confluence"
+        app:useSimpleSummaryProvider="true" />
+
+    <androidx.preference.EditTextPreference
+        android:key="reminder_minutes"
+        android:title="@string/pref_reminder_title"
+        android:summary="@string/pref_reminder_summary"
+        android:defaultValue="10"
+        app:useSimpleSummaryProvider="true" />
+
+</androidx.preference.PreferenceScreen>

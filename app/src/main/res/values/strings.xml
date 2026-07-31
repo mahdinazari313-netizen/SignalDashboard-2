@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Signal Dashboard</string>
+    <string name="action_settings">Settings</string>
+
+    <string name="pref_candle_count_title">Candle Count</string>
+    <string name="pref_candle_count_summary">Number of candles used to compute signal validity</string>
+
+    <string name="pref_alert_mode_title">Alert Mode</string>
+    <string name="pref_alert_mode_summary">Single alerts on every signal, Confluence alerts only when 2+ timeframes align</string>
+
+    <string name="pref_reminder_title">Reminder (minutes)</string>
+    <string name="pref_reminder_summary">Repeat confluence alert every N minutes while it persists (0 = no repeat)</string>
+</resources>
