@@ -7,14 +7,15 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.provider.Settings;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
+import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -34,6 +35,9 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        Toolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
 
         SignalManager.getInstance().init(getApplicationContext());
         SymbolManager.getInstance().init(getApplicationContext());
@@ -86,8 +90,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void ensureNotificationAccess() {
-        String enabled = Settings.Secure.getString(getContentResolver(), "enabled_notification_listeners");
-        boolean granted = enabled != null && enabled.contains(getPackageName());
+        boolean granted = NotificationManagerCompat.getEnabledListenerPackages(this).contains(getPackageName());
         if (!granted) {
             Toast.makeText(this, "Please enable notification access for Signal Dashboard", Toast.LENGTH_LONG).show();
             startActivity(new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"));
