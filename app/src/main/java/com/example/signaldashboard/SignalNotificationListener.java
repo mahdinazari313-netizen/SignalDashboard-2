@@ -21,13 +21,13 @@ import java.util.regex.Pattern;
 
 /**
  * Captures MetaTrader notifications and turns matching text into Signals.
- * Expected format:
- * notification 'SYMBOL,TIMEFRAME' ABCD DIRECTION Signal-[YYYY.MM.DD HH:MM:SS]-ABCD-A X.' sent to 'DEVICE_ID'
+ * Expected format (parentheses OR single quotes around symbol,timeframe):
+ * (SYMBOL,TIMEFRAME) ABCD DIRECTION Signal-[YYYY.MM.DD HH:MM:SS]-ABCD-A X-
  */
 public class SignalNotificationListener extends NotificationListenerService {
 
     private static final Pattern SIGNAL_PATTERN = Pattern.compile(
-            "'([A-Za-z0-9._]+),([A-Za-z0-9]+)'\\s+ABCD\\s+(Buy|Sell)(?:\\s+OnClose)?.*?" +
+            "[(']([A-Za-z0-9._]+),([A-Za-z0-9]+)[)']\\s*ABCD\\s+(Buy|Sell)(?:\\s+OnClose)?.*?" +
                     "\\[(\\d{4}\\.\\d{2}\\.\\d{2}\\s+\\d{2}:\\d{2}:\\d{2})\\]",
             Pattern.DOTALL);
 
