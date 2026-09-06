@@ -12,16 +12,10 @@ import androidx.preference.PreferenceManager;
 
 import java.util.Set;
 
-/**
- * Keeps the app alive in the background. On a fixed cadence it purges
- * expired signals, re-checks confluence for the reminder repeat, and
- * broadcasts a UI-refresh signal. Countdown circle animation itself does NOT
- * depend on this tick -- each CountdownCircleView animates itself.
- */
+/** Background lifecycle: expiry maintenance, confluence reminders and UI refresh. */
 public class SignalForegroundService extends Service {
 
     public static final String ACTION_SIGNALS_UPDATED = "com.example.signaldashboard.SIGNALS_UPDATED";
-
     private static final long TICK_INTERVAL_MS = 5_000L;
 
     private Handler handler;
@@ -36,8 +30,7 @@ public class SignalForegroundService extends Service {
 
         handler = new Handler(Looper.getMainLooper());
         tickRunnable = new Runnable() {
-            @Override
-            public void run() {
+            @Override public void run() {
                 SignalManager.getInstance().purgeExpired();
                 checkReminders();
                 sendBroadcast(new Intent(ACTION_SIGNALS_UPDATED));
@@ -57,13 +50,16 @@ public class SignalForegroundService extends Service {
 
     private void checkReminders() {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        String mode = prefs.getString("alert_mode", "Confluence");
+        if (!"Confluence".equals(mode)) return;
+
         int reminderMinutes;
         try {
             reminderMinutes = Integer.parseInt(prefs.getString("reminder_minutes", "10"));
         } catch (NumberFormatException e) {
             reminderMinutes = 10;
         }
-        if (reminderMinutes <= 0) return; // 0 = alert once per confluence event, no repeat
+        if (reminderMinutes <= 0) return;
 
         long reminderMillis = reminderMinutes * 60_000L;
         SignalManager sm = SignalManager.getInstance();
@@ -79,17 +75,11 @@ public class SignalForegroundService extends Service {
         }
     }
 
-    @Override
-    public void onDestroy() {
+    @Override public void onDestroy() {
+        if (handler != null && tickRunnable != null) handler.removeCallbacks(tickRunnable);
         super.onDestroy();
-        if (handler != null && tickRunnable != null) {
-            handler.removeCallbacks(tickRunnable);
-        }
     }
 
     @Nullable
-    @Override
-    public IBinder onBind(Intent intent) {
-        return null;
-    }
+    @Override public IBinder onBind(Intent intent) { return null; }
 }
