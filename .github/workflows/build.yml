@@ -1,15 +1,19 @@
-name: Build APK
+name: Build and Publish APK
 
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -25,11 +29,24 @@ jobs:
         with:
           gradle-version: 8.4
 
-      - name: Build debug APK
+      - name: Build installable APK
         run: gradle assembleDebug
 
-      - name: Upload APK
+      - name: Prepare APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk SignalDashboard.apk
+
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: signal-dashboard-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: SignalDashboard-installable
+          path: SignalDashboard.apk
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v1.0.${{ github.run_number }}"
+          gh release create "$TAG" SignalDashboard.apk \
+            --title "Signal Dashboard $TAG" \
+            --notes "Installable Android APK built automatically from main." \
+            --target "${{ github.sha }}"
