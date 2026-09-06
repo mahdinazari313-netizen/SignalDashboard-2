@@ -17,12 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Owns all ACTIVE signals in memory, persists them to SharedPreferences as a
- * JSON array, and purges expired ones on every access so they never
- * accumulate. Also tracks per-symbol manual dismiss state and per-key alert
- * cooldowns (used both for the 30s anti-spam guard and the reminder repeat).
- */
+/** Central active-signal state. Identity is strictly Symbol + Timeframe. */
 public class SignalManager {
 
     private static final String PREFS_NAME = "signal_prefs";
@@ -33,16 +28,12 @@ public class SignalManager {
     private final List<Signal> signals = new ArrayList<>();
     private final Set<String> dismissedSymbols = new HashSet<>();
     private final Map<String, Long> lastAlertTime = new HashMap<>();
-
     private SharedPreferences prefs;
 
-    private SignalManager() {
-    }
+    private SignalManager() {}
 
     public static synchronized SignalManager getInstance() {
-        if (instance == null) {
-            instance = new SignalManager();
-        }
+        if (instance == null) instance = new SignalManager();
         return instance;
     }
 
@@ -68,13 +59,10 @@ public class SignalManager {
 
     private void save() {
         JSONArray arr = new JSONArray();
-        for (Signal s : signals) {
-            arr.put(s.toJson());
-        }
+        for (Signal s : signals) arr.put(s.toJson());
         prefs.edit().putString(KEY_SIGNALS, arr.toString()).apply();
     }
 
-    /** Removes every signal whose expiry has passed, from memory AND storage. */
     public synchronized void purgeExpired() {
         long now = System.currentTimeMillis();
         boolean changed = false;
@@ -88,19 +76,16 @@ public class SignalManager {
     }
 
     /**
-     * Adds a new signal. If an active signal already exists for the same
-     * symbol + timeframe, it is replaced (a fresh candle result on that
-     * timeframe supersedes the previous one).
+     * Upsert by Symbol + Timeframe. Direction never participates in identity.
+     * A new signal therefore replaces an existing opposite-direction signal
+     * on the same timeframe.
      */
     public synchronized void addSignal(Signal newSignal) {
+        String key = newSignal.getKey();
         for (int i = signals.size() - 1; i >= 0; i--) {
-            Signal s = signals.get(i);
-            if (s.symbol.equals(newSignal.symbol) && s.timeframe.equals(newSignal.timeframe)) {
-                signals.remove(i);
-            }
+            if (key.equals(signals.get(i).getKey())) signals.remove(i);
         }
         signals.add(newSignal);
-        // A fresh signal un-dismisses the card so it reappears.
         dismissedSymbols.remove(newSignal.symbol);
         save();
     }
@@ -108,28 +93,22 @@ public class SignalManager {
     public synchronized List<Signal> getActiveSignalsForSymbol(String symbol) {
         purgeExpired();
         List<Signal> result = new ArrayList<>();
-        for (Signal s : signals) {
-            if (s.symbol.equals(symbol)) result.add(s);
-        }
+        for (Signal s : signals) if (s.symbol.equals(symbol)) result.add(s);
         return result;
     }
 
-    /** Symbols with at least one active, non-dismissed signal, oldest receive time first. */
     public synchronized List<String> getVisibleSymbolsSortedByOldest() {
         purgeExpired();
-        final Map<String, Long> oldestReceiveTime = new HashMap<>();
+        final Map<String, Long> oldest = new HashMap<>();
         for (Signal s : signals) {
             if (dismissedSymbols.contains(s.symbol)) continue;
-            Long current = oldestReceiveTime.get(s.symbol);
-            if (current == null || s.receiveTime < current) {
-                oldestReceiveTime.put(s.symbol, s.receiveTime);
-            }
+            Long current = oldest.get(s.symbol);
+            if (current == null || s.receiveTime < current) oldest.put(s.symbol, s.receiveTime);
         }
-        List<String> result = new ArrayList<>(oldestReceiveTime.keySet());
+        List<String> result = new ArrayList<>(oldest.keySet());
         Collections.sort(result, new Comparator<String>() {
-            @Override
-            public int compare(String a, String b) {
-                return Long.compare(oldestReceiveTime.get(a), oldestReceiveTime.get(b));
+            @Override public int compare(String a, String b) {
+                return Long.compare(oldest.get(a), oldest.get(b));
             }
         });
         return result;
@@ -140,27 +119,17 @@ public class SignalManager {
     }
 
     public synchronized boolean hasBuyConfluence(String symbol) {
-        int buy = 0;
-        for (Signal s : getActiveSignalsForSymbol(symbol)) {
-            if ("Buy".equals(s.direction)) buy++;
-        }
-        return buy >= 2;
+        int count = 0;
+        for (Signal s : getActiveSignalsForSymbol(symbol)) if ("Buy".equals(s.direction)) count++;
+        return count >= 2;
     }
 
     public synchronized boolean hasSellConfluence(String symbol) {
-        int sell = 0;
-        for (Signal s : getActiveSignalsForSymbol(symbol)) {
-            if ("Sell".equals(s.direction)) sell++;
-        }
-        return sell >= 2;
+        int count = 0;
+        for (Signal s : getActiveSignalsForSymbol(symbol)) if ("Sell".equals(s.direction)) count++;
+        return count >= 2;
     }
 
-    /**
-     * Generic cooldown check shared by the 30s anti-spam guard (listener) and
-     * the N-minute reminder repeat (foreground service). Returns true (and
-     * records "now") only if intervalMillis has elapsed since the last alert
-     * sent under this key.
-     */
     public synchronized boolean canAlert(String key, long intervalMillis) {
         long now = System.currentTimeMillis();
         Long last = lastAlertTime.get(key);
